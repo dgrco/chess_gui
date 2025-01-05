@@ -52,13 +52,9 @@ export function Board() {
     return ((7 - r) % 2 == 1 && c % 2 == 1) || ((7 - r) % 2 == 0 && c % 2 == 0);
   };
 
-  const rowColToBoardIdx = (r, c) => {
-    return (7 - r) * 8 + c;
+  const rowColToIdx = (r, c) => {
+    return r * 8 + c;
   };
-
-  const boardIdxToArrayIdx = (boardIdx) => {
-    return (7 - (Math.floor(boardIdx / 8))) * 8 + boardIdx % 8;
-  }
 
   /// Convert a FEN string to Pieces
   const fenToPieces = (fen) => {
@@ -67,7 +63,7 @@ export function Board() {
     for (let i = 0; fen[i] != " "; i++) {
       let row = Math.floor(curr / 8);
       let col = curr % 8;
-      let boardIdx = rowColToBoardIdx(row, col);
+      let boardIdx = rowColToIdx(row, col);
       switch (fen[i]) {
         case "p":
           pieces.set(
@@ -166,7 +162,7 @@ export function Board() {
   let buffer = [];
   for (let row = 0; row < 8; row++) {
     for (let col = 0; col < 8; col++) {
-      const boardIdx = rowColToBoardIdx(row, col);
+      const boardIdx = rowColToIdx(row, col);
       buffer.push({ 'idx': boardIdx, 'piece': pieces.get(boardIdx) });
     }
   }
@@ -178,8 +174,6 @@ export function Board() {
   /// piece it will return 1, if it is the opposite color it will return -1, otherwise it returns 0.
   /// These arguments are to be passed as board indices, not array indices.
   const isPieceOccupied = (selectedIdx, newIdx) => {
-    selectedIdx = boardIdxToArrayIdx(selectedIdx);
-    newIdx = boardIdxToArrayIdx(newIdx);
     const selectedColor = board[selectedIdx].piece !== undefined ? board[selectedIdx].piece.props.color : undefined;
     const newColor = board[newIdx].piece !== undefined ? board[newIdx].piece.props.color : undefined;
     if (selectedColor !== undefined && newColor !== undefined) {
@@ -197,27 +191,25 @@ export function Board() {
     let positions = [];
     const row = Math.floor(boardIdx / 8);
     const col = boardIdx % 8;
-    const arrIdx = boardIdxToArrayIdx(boardIdx);
-    console.log(board[arrIdx].piece);
-    const color = board[arrIdx].piece !== undefined ? board[arrIdx].piece.props.color : undefined;
+    const color = board[boardIdx].piece !== undefined ? board[boardIdx].piece.props.color : undefined;
 
     if (color === undefined) {
       return [];
     }
 
     if (color === "White") {
-      if (row + 1 <= 7) {
-        positions.push((row + 1) * 8 + col);
-      }
-      if (row === 1) {
-        positions.push((row + 2) * 8 + col);
-      }
-    } else {
       if (row - 1 >= 0) {
         positions.push((row - 1) * 8 + col);
       }
       if (row === 6) {
         positions.push((row - 2) * 8 + col);
+      }
+    } else {
+      if (row + 1 <= 7) {
+        positions.push((row + 1) * 8 + col);
+      }
+      if (row === 1) {
+        positions.push((row + 2) * 8 + col);
       }
     }
 
@@ -242,7 +234,7 @@ export function Board() {
       }
     }
     // Up
-    for (let i = row + 1; i <= 7; i++) {
+    for (let i = row - 1; i >= 0; i--) {
       const occupied = isPieceOccupied(boardIdx, i * 8 + col);
       if (occupied === 1) {
         break;
@@ -253,7 +245,7 @@ export function Board() {
       }
     }
     // Down
-    for (let i = row - 1; i >= 0; i--) {
+    for (let i = row + 1; i <= 7; i++) {
       const occupied = isPieceOccupied(boardIdx, i * 8 + col);
       if (occupied === 1) {
         break;
@@ -285,19 +277,6 @@ export function Board() {
     // Top-Right
     let currRow = row;
     let currCol = col;
-    for (let i = Math.max(row, col); i < 7; i++) {
-      const occupied = isPieceOccupied(boardIdx, (currRow + 1) * 8 + currCol + 1)
-      if (occupied === 1) {
-        break;
-      }
-      positions.push((++currRow) * 8 + (++currCol));
-      if (occupied === -1) {
-        break;
-      }
-    }
-    // Bottom-Right
-    currRow = row;
-    currCol = col;
     for (let i = Math.max(7 - row, col); i < 7; i++) {
       const occupied = isPieceOccupied(boardIdx, (currRow - 1) * 8 + currCol + 1)
       if (occupied === 1) {
@@ -308,20 +287,20 @@ export function Board() {
         break;
       }
     }
-    // Bottom-Left
+    // Bottom-Right
     currRow = row;
     currCol = col;
-    for (let i = Math.min(row, col); i > 0; i--) {
-      const occupied = isPieceOccupied(boardIdx, (currRow - 1) * 8 + currCol - 1)
+    for (let i = Math.max(row, col); i < 7; i++) {
+      const occupied = isPieceOccupied(boardIdx, (currRow + 1) * 8 + currCol + 1)
       if (occupied === 1) {
         break;
       }
-      positions.push((--currRow) * 8 + (--currCol));
+      positions.push((++currRow) * 8 + (++currCol));
       if (occupied === -1) {
         break;
       }
     }
-    // Top-Left
+    // Bottom-Left
     currRow = row;
     currCol = col;
     for (let i = Math.max(row, 7 - col); i < 7; i++) {
@@ -330,6 +309,19 @@ export function Board() {
         break;
       }
       positions.push((++currRow) * 8 + (--currCol));
+      if (occupied === -1) {
+        break;
+      }
+    }
+    // Top-Left
+    currRow = row;
+    currCol = col;
+    for (let i = Math.min(row, col); i > 0; i++) {
+      const occupied = isPieceOccupied(boardIdx, (currRow - 1) * 8 + currCol - 1)
+      if (occupied === 1) {
+        break;
+      }
+      positions.push((--currRow) * 8 + (--currCol));
       if (occupied === -1) {
         break;
       }
@@ -344,58 +336,58 @@ export function Board() {
     const col = boardIdx % 8;
 
     // Left-Left-Up
-    if ((col - 2) >= 0 && (row + 1) <= 7) {
-      if (isPieceOccupied(boardIdx, (row + 1) * 8 + (col - 2)) !== 1) {
-        positions.push((row + 1) * 8 + (col - 2));
-      }
-    }
-
-    // Left-Left-Down
     if ((col - 2) >= 0 && (row - 1) >= 0) {
       if (isPieceOccupied(boardIdx, (row - 1) * 8 + (col - 2)) !== 1) {
         positions.push((row - 1) * 8 + (col - 2));
       }
     }
 
-    // Left-Up-Up
-    if ((col - 1) >= 0 && (row + 2) <= 7) {
-      if (isPieceOccupied(boardIdx, (row + 2) * 8 + (col - 1)) !== 1) {
-        positions.push((row + 2) * 8 + (col - 1));
+    // Left-Left-Down
+    if ((col - 2) >= 0 && (row + 1) <= 7) {
+      if (isPieceOccupied(boardIdx, (row + 1) * 8 + (col - 2)) !== 1) {
+        positions.push((row + 1) * 8 + (col - 2));
       }
     }
 
-    // Left-Down-Down
+    // Left-Up-Up
     if ((col - 1) >= 0 && (row - 2) >= 0) {
       if (isPieceOccupied(boardIdx, (row - 2) * 8 + (col - 1)) !== 1) {
         positions.push((row - 2) * 8 + (col - 1));
       }
     }
 
-    // Right-Right-Up
-    if ((col + 2) <= 7 && (row + 1) <= 7) {
-      if (isPieceOccupied(boardIdx, (row + 1) * 8 + (col + 2)) !== 1) {
-        positions.push((row + 1) * 8 + (col + 2));
+    // Left-Down-Down
+    if ((col - 1) >= 0 && (row + 2) <= 7) {
+      if (isPieceOccupied(boardIdx, (row + 2) * 8 + (col - 1)) !== 1) {
+        positions.push((row + 2) * 8 + (col - 1));
       }
     }
 
-    // Right-Right-Down
+    // Right-Right-Up
     if ((col + 2) <= 7 && (row - 1) >= 0) {
       if (isPieceOccupied(boardIdx, (row - 1) * 8 + (col + 2)) !== 1) {
         positions.push((row - 1) * 8 + (col + 2));
       }
     }
 
+    // Right-Right-Down
+    if ((col + 2) <= 7 && (row + 1) <= 7) {
+      if (isPieceOccupied(boardIdx, (row + 1) * 8 + (col + 2)) !== 1) {
+        positions.push((row + 1) * 8 + (col + 2));
+      }
+    }
+
     // Right-Up-Up
-    if ((col + 1) <= 7 && (row + 2) <= 7) {
-      if (isPieceOccupied(boardIdx, (row + 2) * 8 + (col + 1)) !== 1) {
-        positions.push((row + 2) * 8 + (col + 1));
+    if ((col + 1) <= 7 && (row - 2) >= 0) {
+      if (isPieceOccupied(boardIdx, (row - 2) * 8 + (col + 1)) !== 1) {
+        positions.push((row - 2) * 8 + (col + 1));
       }
     }
 
     // Right-Down-Down
-    if ((col + 1) <= 7 && (row - 2) >= 0) {
-      if (isPieceOccupied(boardIdx, (row - 2) * 8 + (col + 1)) !== 1) {
-        positions.push((row - 2) * 8 + (col + 1));
+    if ((col + 1) <= 7 && (row + 2) <= 7) {
+      if (isPieceOccupied(boardIdx, (row + 2) * 8 + (col + 1)) !== 1) {
+        positions.push((row + 2) * 8 + (col + 1));
       }
     }
 
@@ -492,8 +484,8 @@ export function Board() {
 
   /// Handle selection and movement logic.
   const handleMove = (boardIdx) => {
-    const newSelectionIdx = boardIdxToArrayIdx(boardIdx);
-    const oldSelectionIdx = selected !== undefined ? boardIdxToArrayIdx(selected.idx) : undefined;
+    const newSelectionIdx = boardIdx;
+    const oldSelectionIdx = selected !== undefined ? selected.idx : undefined;
     const newSelectionColor = board[newSelectionIdx].piece !== undefined ? board[newSelectionIdx].piece.props.color : undefined;
     const oldSelectedColor = selected !== undefined ? selected.piece.props.color : undefined;
     if (oldSelectionIdx !== undefined && oldSelectionIdx !== newSelectionIdx && legalMoves.includes(boardIdx)) {
@@ -522,7 +514,7 @@ export function Board() {
     for (let i = 0; i < board.length; i += 8) {
       const rowSquares = board.slice(i, i + 8);
       tableRows.push(
-        <tr key={7 - i}>
+        <tr key={i}>
           {rowSquares.map(({ idx, piece }, j) => (
             <td key={i + j} style={{ border: "0px" }}>
               <div

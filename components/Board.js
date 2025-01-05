@@ -198,18 +198,34 @@ export function Board() {
     }
 
     if (color === "White") {
-      if (row - 1 >= 0) {
+      if (row - 1 >= 0 && isPieceOccupied(boardIdx, (row - 1) * 8 + col) == 0) {
         positions.push((row - 1) * 8 + col);
+        if (row === 6) {
+          if (isPieceOccupied(boardIdx, (row - 2) * 8 + col) == 0) {
+            positions.push((row - 2) * 8 + col);
+          }
+        }
       }
-      if (row === 6) {
-        positions.push((row - 2) * 8 + col);
+      if (row - 1 >= 0 && col - 1 >= 0 && isPieceOccupied(boardIdx, rowColToIdx(row - 1, col - 1)) === -1) {
+        positions.push(rowColToIdx(row - 1, col - 1));
+      }
+      if (row - 1 >= 0 && col + 1 >= 0 && isPieceOccupied(boardIdx, rowColToIdx(row - 1, col + 1)) === -1) {
+        positions.push(rowColToIdx(row - 1, col + 1));
       }
     } else {
-      if (row + 1 <= 7) {
+      if (row + 1 <= 7 && isPieceOccupied(boardIdx, (row + 1) * 8 + col) == 0) {
         positions.push((row + 1) * 8 + col);
+        if (row === 1) {
+          if (isPieceOccupied(boardIdx, (row + 2) * 8 + col) == 0) {
+            positions.push((row + 2) * 8 + col);
+          }
+        }
       }
-      if (row === 1) {
-        positions.push((row + 2) * 8 + col);
+      if (row + 1 >= 0 && col - 1 >= 0 && isPieceOccupied(boardIdx, rowColToIdx(row + 1, col - 1)) === -1) {
+        positions.push(rowColToIdx(row + 1, col - 1));
+      }
+      if (row + 1 >= 0 && col + 1 >= 0 && isPieceOccupied(boardIdx, rowColToIdx(row + 1, col + 1)) === -1) {
+        positions.push(rowColToIdx(row + 1, col + 1));
       }
     }
 
@@ -321,7 +337,6 @@ export function Board() {
       if (occupied === 1) {
         break;
       }
-      console.log('tl')
       positions.push((--currRow) * 8 + (--currCol));
       if (occupied === -1) {
         break;

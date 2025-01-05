@@ -72,84 +72,84 @@ export function Board() {
         case "p":
           pieces.set(
             boardIdx,
-            <Piece svgSrc={bPawnSvg} altText="Black Pawn" />,
+            <Piece svgSrc={bPawnSvg} type="Pawn" color="Black" altText="Black Pawn" />,
           );
           curr++;
           break;
         case "b":
           pieces.set(
             boardIdx,
-            <Piece svgSrc={bBishopSvg} altText="Black Bishop" />,
+            <Piece svgSrc={bBishopSvg} type="Bishop" color="Black" altText="Black Bishop" />,
           );
           curr++;
           break;
         case "n":
           pieces.set(
             boardIdx,
-            <Piece svgSrc={bKnightSvg} altText="Black Knight" />,
+            <Piece svgSrc={bKnightSvg} type="Knight" color="Black" altText="Black Knight" />,
           );
           curr++;
           break;
         case "r":
           pieces.set(
             boardIdx,
-            <Piece svgSrc={bRookSvg} altText="Black Rook" />,
+            <Piece svgSrc={bRookSvg} type="Rook" color="Black" altText="Black Rook" />,
           );
           curr++;
           break;
         case "q":
           pieces.set(
             boardIdx,
-            <Piece svgSrc={bQueenSvg} altText="Black Queen" />,
+            <Piece svgSrc={bQueenSvg} type="Queen" color="Black" altText="Black Queen" />,
           );
           curr++;
           break;
         case "k":
           pieces.set(
             boardIdx,
-            <Piece svgSrc={bKingSvg} altText="Black King" />,
+            <Piece svgSrc={bKingSvg} type="King" color="Black" altText="Black King" />,
           );
           curr++;
           break;
         case "P":
           pieces.set(
             boardIdx,
-            <Piece svgSrc={wPawnSvg} altText="White Pawn" />,
+            <Piece svgSrc={wPawnSvg} type="Pawn" color="White" altText="White Pawn" />,
           );
           curr++;
           break;
         case "B":
           pieces.set(
             boardIdx,
-            <Piece svgSrc={wBishopSvg} altText="White Bishop" />,
+            <Piece svgSrc={wBishopSvg} type="Bishop" color="White" altText="White Bishop" />,
           );
           curr++;
           break;
         case "N":
           pieces.set(
             boardIdx,
-            <Piece svgSrc={wKnightSvg} altText="White Knight" />,
+            <Piece svgSrc={wKnightSvg} type="Knight" color="White" altText="White Knight" />,
           );
           curr++;
           break;
         case "R":
           pieces.set(
             boardIdx,
-            <Piece svgSrc={wRookSvg} altText="White Rook" />,
+            <Piece svgSrc={wRookSvg} type="Rook" color="White" altText="White Rook" />,
           );
           curr++;
           break;
         case "Q":
           pieces.set(
             boardIdx,
-            <Piece svgSrc={wQueenSvg} altText="White Queen" />,
+            <Piece svgSrc={wQueenSvg} type="Queen" color="White" altText="White Queen" />,
           );
           curr++;
           break;
         case "K":
           pieces.set(
             boardIdx,
-            <Piece svgSrc={wKingSvg} altText="White King" />,
+            <Piece svgSrc={wKingSvg} type="King" color="White" altText="White King" />,
           );
           curr++;
           break;
@@ -172,26 +172,351 @@ export function Board() {
   }
   const [board, setBoard] = useState(buffer);
   const [selected, setSelected] = useState(undefined);
+  const [legalMoves, setLegalMoves] = useState([]);
 
+  /// Check if a piece is at a location, if the piece is the same color as the selected
+  /// piece it will return 1, if it is the opposite color it will return -1, otherwise it returns 0.
+  /// These arguments are to be passed as board indices, not array indices.
+  const isPieceOccupied = (selectedIdx, newIdx) => {
+    selectedIdx = boardIdxToArrayIdx(selectedIdx);
+    newIdx = boardIdxToArrayIdx(newIdx);
+    const selectedColor = board[selectedIdx].piece !== undefined ? board[selectedIdx].piece.props.color : undefined;
+    const newColor = board[newIdx].piece !== undefined ? board[newIdx].piece.props.color : undefined;
+    if (selectedColor !== undefined && newColor !== undefined) {
+      if (selectedColor === newColor) {
+        return 1;
+      } else {
+        return -1;
+      }
+    }
+    return 0;
+  }
+
+  /// Get legal pawn moves
+  const getLegalPawnMoves = (boardIdx) => {
+    let positions = [];
+    const row = Math.floor(boardIdx / 8);
+    const col = boardIdx % 8;
+    const arrIdx = boardIdxToArrayIdx(boardIdx);
+    console.log(board[arrIdx].piece);
+    const color = board[arrIdx].piece !== undefined ? board[arrIdx].piece.props.color : undefined;
+
+    if (color === undefined) {
+      return [];
+    }
+
+    if (color === "White") {
+      if (row + 1 <= 7) {
+        positions.push((row + 1) * 8 + col);
+      }
+      if (row === 1) {
+        positions.push((row + 2) * 8 + col);
+      }
+    } else {
+      if (row - 1 >= 0) {
+        positions.push((row - 1) * 8 + col);
+      }
+      if (row === 6) {
+        positions.push((row - 2) * 8 + col);
+      }
+    }
+
+    return positions;
+  }
+
+  /// Generate legal rays (for rooks/queens)
+  const getLegalRays = (boardIdx) => {
+    let positions = [];
+    const row = Math.floor(boardIdx / 8);
+    const col = boardIdx % 8;
+
+    // Right
+    for (let i = col + 1; i <= 7; i++) {
+      const occupied = isPieceOccupied(boardIdx, row * 8 + i);
+      if (occupied === 1) {
+        break;
+      }
+      positions.push(row * 8 + i);
+      if (occupied === -1) {
+        break;
+      }
+    }
+    // Up
+    for (let i = row + 1; i <= 7; i++) {
+      const occupied = isPieceOccupied(boardIdx, i * 8 + col);
+      if (occupied === 1) {
+        break;
+      }
+      positions.push(i * 8 + col);
+      if (occupied === -1) {
+        break;
+      }
+    }
+    // Down
+    for (let i = row - 1; i >= 0; i--) {
+      const occupied = isPieceOccupied(boardIdx, i * 8 + col);
+      if (occupied === 1) {
+        break;
+      }
+      positions.push(i * 8 + col);
+      if (occupied === -1) {
+        break;
+      }
+    }
+    // Left
+    for (let i = col - 1; i >= 0; i--) {
+      const occupied = isPieceOccupied(boardIdx, row * 8 + i);
+      if (occupied === 1) {
+        break;
+      }
+      positions.push(row * 8 + i);
+      if (occupied === -1) {
+        break;
+      }
+    }
+    return positions;
+  }
+
+  /// Generate legal diagonals (for bishops/queens)
+  const getLegalDiagonals = (boardIdx) => {
+    let positions = [];
+    const row = Math.floor(boardIdx / 8);
+    const col = boardIdx % 8;
+    // Top-Right
+    let currRow = row;
+    let currCol = col;
+    for (let i = Math.max(row, col); i < 7; i++) {
+      const occupied = isPieceOccupied(boardIdx, (currRow + 1) * 8 + currCol + 1)
+      if (occupied === 1) {
+        break;
+      }
+      positions.push((++currRow) * 8 + (++currCol));
+      if (occupied === -1) {
+        break;
+      }
+    }
+    // Bottom-Right
+    currRow = row;
+    currCol = col;
+    for (let i = Math.max(7 - row, col); i < 7; i++) {
+      const occupied = isPieceOccupied(boardIdx, (currRow - 1) * 8 + currCol + 1)
+      if (occupied === 1) {
+        break;
+      }
+      positions.push((--currRow) * 8 + (++currCol));
+      if (occupied === -1) {
+        break;
+      }
+    }
+    // Bottom-Left
+    currRow = row;
+    currCol = col;
+    for (let i = Math.min(row, col); i > 0; i--) {
+      const occupied = isPieceOccupied(boardIdx, (currRow - 1) * 8 + currCol - 1)
+      if (occupied === 1) {
+        break;
+      }
+      positions.push((--currRow) * 8 + (--currCol));
+      if (occupied === -1) {
+        break;
+      }
+    }
+    // Top-Left
+    currRow = row;
+    currCol = col;
+    for (let i = Math.max(row, 7 - col); i < 7; i++) {
+      const occupied = isPieceOccupied(boardIdx, (currRow + 1) * 8 + currCol - 1)
+      if (occupied === 1) {
+        break;
+      }
+      positions.push((++currRow) * 8 + (--currCol));
+      if (occupied === -1) {
+        break;
+      }
+    }
+    return positions;
+  }
+
+  /// Get the legal knight move positions.
+  const getLegalKnightMoves = (boardIdx) => {
+    let positions = [];
+    const row = Math.floor(boardIdx / 8);
+    const col = boardIdx % 8;
+
+    // Left-Left-Up
+    if ((col - 2) >= 0 && (row + 1) <= 7) {
+      if (isPieceOccupied(boardIdx, (row + 1) * 8 + (col - 2)) !== 1) {
+        positions.push((row + 1) * 8 + (col - 2));
+      }
+    }
+
+    // Left-Left-Down
+    if ((col - 2) >= 0 && (row - 1) >= 0) {
+      if (isPieceOccupied(boardIdx, (row - 1) * 8 + (col - 2)) !== 1) {
+        positions.push((row - 1) * 8 + (col - 2));
+      }
+    }
+
+    // Left-Up-Up
+    if ((col - 1) >= 0 && (row + 2) <= 7) {
+      if (isPieceOccupied(boardIdx, (row + 2) * 8 + (col - 1)) !== 1) {
+        positions.push((row + 2) * 8 + (col - 1));
+      }
+    }
+
+    // Left-Down-Down
+    if ((col - 1) >= 0 && (row - 2) >= 0) {
+      if (isPieceOccupied(boardIdx, (row - 2) * 8 + (col - 1)) !== 1) {
+        positions.push((row - 2) * 8 + (col - 1));
+      }
+    }
+
+    // Right-Right-Up
+    if ((col + 2) <= 7 && (row + 1) <= 7) {
+      if (isPieceOccupied(boardIdx, (row + 1) * 8 + (col + 2)) !== 1) {
+        positions.push((row + 1) * 8 + (col + 2));
+      }
+    }
+
+    // Right-Right-Down
+    if ((col + 2) <= 7 && (row - 1) >= 0) {
+      if (isPieceOccupied(boardIdx, (row - 1) * 8 + (col + 2)) !== 1) {
+        positions.push((row - 1) * 8 + (col + 2));
+      }
+    }
+
+    // Right-Up-Up
+    if ((col + 1) <= 7 && (row + 2) <= 7) {
+      if (isPieceOccupied(boardIdx, (row + 2) * 8 + (col + 1)) !== 1) {
+        positions.push((row + 2) * 8 + (col + 1));
+      }
+    }
+
+    // Right-Down-Down
+    if ((col + 1) <= 7 && (row - 2) >= 0) {
+      if (isPieceOccupied(boardIdx, (row - 2) * 8 + (col + 1)) !== 1) {
+        positions.push((row - 2) * 8 + (col + 1));
+      }
+    }
+
+    return positions;
+  }
+
+  const getLegalKingMoves = (boardIdx) => {
+    let positions = [];
+    const row = Math.floor(boardIdx / 8);
+    const col = boardIdx % 8;
+
+    if (col - 1 >= 0) {
+      if (isPieceOccupied(boardIdx, row * 8 + (col - 1)) !== 1) {
+        positions.push(row * 8 + (col - 1));
+      }
+    }
+    if (col + 1 <= 7) {
+      if (isPieceOccupied(boardIdx, row * 8 + (col + 1)) !== 1) {
+        positions.push(row * 8 + (col + 1));
+      }
+    }
+
+    if (row + 1 <= 7) {
+      if (isPieceOccupied(boardIdx, (row + 1) * 8 + col) !== 1) {
+        positions.push((row + 1) * 8 + col);
+      }
+      if (col - 1 >= 0) {
+        if (isPieceOccupied(boardIdx, (row + 1) * 8 + (col - 1)) !== 1) {
+          positions.push((row + 1) * 8 + (col - 1));
+        }
+      }
+      if (col + 1 <= 7) {
+        if (isPieceOccupied(boardIdx, (row + 1) * 8 + (col + 1)) !== 1) {
+          positions.push((row + 1) * 8 + (col + 1));
+        }
+      }
+    }
+
+    if (row - 1 >= 0) {
+      if (isPieceOccupied(boardIdx, (row - 1) * 8 + col) !== 1) {
+        positions.push((row - 1) * 8 + col);
+      }
+      if (col - 1 >= 0) {
+        if (isPieceOccupied(boardIdx, (row - 1) * 8 + (col - 1)) !== 1) {
+          positions.push((row - 1) * 8 + (col - 1));
+        }
+      }
+      if (col + 1 <= 7) {
+        if (isPieceOccupied(boardIdx, (row - 1) * 8 + (col + 1)) !== 1) {
+          positions.push((row - 1) * 8 + (col + 1));
+        }
+      }
+    }
+    return positions;
+  }
+
+  /// Generate all pseudo-legal moves of the selected piece
+  const generatePseudoLegalMoves = (sPiece) => {
+    if (sPiece === undefined) {
+      return;
+    }
+    const selectedIdx = sPiece.idx;
+    const selectedPiece = sPiece.piece;
+    const selectedType = selectedPiece.props.type;
+    let legalMoveBuffer = [];
+    switch (selectedType) {
+      case "Pawn": {
+        legalMoveBuffer = [...getLegalPawnMoves(selectedIdx)];
+        break;
+      };
+      case "Bishop": {
+        legalMoveBuffer = [...getLegalDiagonals(selectedIdx)];
+        break;
+      }
+      case "Knight": {
+        legalMoveBuffer = [...getLegalKnightMoves(selectedIdx)];
+        break;
+      }
+      case "Rook": {
+        legalMoveBuffer = [...getLegalRays(selectedIdx)];
+        break;
+      }
+      case "Queen": {
+        legalMoveBuffer = [...getLegalRays(selectedIdx), ...getLegalDiagonals(selectedIdx)];
+        break;
+      }
+      case "King": {
+        legalMoveBuffer = [...getLegalKingMoves(selectedIdx)];
+        break;
+      }
+    }
+    setLegalMoves(legalMoveBuffer);
+  }
+
+  /// Handle selection and movement logic.
   const handleMove = (boardIdx) => {
-    const arrayIdx = boardIdxToArrayIdx(boardIdx);
-    const selectedIdx = selected !== undefined ? boardIdxToArrayIdx(selected.idx) : undefined;
-    if (selectedIdx !== undefined && selectedIdx !== arrayIdx) {
+    const newSelectionIdx = boardIdxToArrayIdx(boardIdx);
+    const oldSelectionIdx = selected !== undefined ? boardIdxToArrayIdx(selected.idx) : undefined;
+    const newSelectionColor = board[newSelectionIdx].piece !== undefined ? board[newSelectionIdx].piece.props.color : undefined;
+    const oldSelectedColor = selected !== undefined ? selected.piece.props.color : undefined;
+    if (oldSelectionIdx !== undefined && oldSelectionIdx !== newSelectionIdx && legalMoves.includes(boardIdx)) {
       // Make move
       let tmp = Array.from(board);
-      tmp[arrayIdx].piece = selected.piece;
-      tmp[selectedIdx].piece = undefined;
+      tmp[newSelectionIdx].piece = selected.piece;
+      tmp[oldSelectionIdx].piece = undefined;
       setBoard(tmp);
       setSelected(undefined);
-    } else if (selectedIdx === undefined && board[arrayIdx].piece != undefined) {
+      setLegalMoves([]);
+    } else if (newSelectionColor !== undefined && newSelectionIdx !== oldSelectionIdx) {
       // Initialize selection
-      setSelected(board[arrayIdx]);
-    } else if (selectedIdx === arrayIdx) {
+      // TODO: edit the condition to avoid swapping sides
+      setSelected(board[newSelectionIdx]);
+      generatePseudoLegalMoves(board[newSelectionIdx]);
+    } else {
       // Unmake selection
       setSelected(undefined);
+      setLegalMoves([]);
     }
   };
 
+  /// Render the board
   const renderTable = () => {
     let tableRows = [];
     for (let i = 0; i < board.length; i += 8) {
@@ -203,7 +528,8 @@ export function Board() {
               <div
                 role="button"
                 onClick={() => handleMove(idx)}
-                className={`${styles.cell} ${isDarkSquare(Math.floor(i / 8), j) ? styles.dark : styles.light} ${selected !== undefined && selected.idx === idx && styles.selected}`}
+                className={`${styles.cell} ${isDarkSquare(Math.floor(i / 8), j) ? styles.dark : styles.light} ${selected !== undefined && selected.idx === idx && styles.selected}
+                ${legalMoves.includes(idx) && styles.potentialMove}`}
               >
                 {piece}
               </div>

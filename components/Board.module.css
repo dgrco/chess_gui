@@ -1,7 +1,7 @@
 .cell {
+  position: relative;
   aspect-ratio: 1/1;
-  width: 7rem;
-  height: 7rem;
+  width: min(calc(100vw / 8 - 4px), 7rem);
   transition: all ease-in-out 75ms;
 }
 
@@ -19,7 +19,30 @@
 
 .selected {
   background-color: #4A314D;
-  border: 2px solid white;
+  border: 3px solid white;
+}
+
+@keyframes potentialMoveFadeIn {
+0% {
+  opacity: 0%;
+}
+100% {
+  opacity: 100%;
+}
+}
+
+.cell.potentialMove::after {
+  animation: potentialMoveFadeIn 100ms ease-in-out forwards;
+  content: '';
+  position: absolute;
+  top: 50%; /* Center the square */
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 30%;
+  height: 30%;
+  border: 2px solid rgb(102, 140, 255);
+  border-radius: 100%;
+  background-color: rgba(56, 56, 56, 0.8); 
 }
 
 .pieceContainer {
@@ -45,6 +68,7 @@
 }
 
 .table {
+  border: 10px solid #4A314D;
   user-select: none; /* For most browsers */
   user-drag: none;
   -webkit-user-select: none; /* For Safari */

@@ -316,11 +316,12 @@ export function Board() {
     // Top-Left
     currRow = row;
     currCol = col;
-    for (let i = Math.min(row, col); i > 0; i++) {
+    for (let i = Math.min(row, col); i > 0; i--) {
       const occupied = isPieceOccupied(boardIdx, (currRow - 1) * 8 + currCol - 1)
       if (occupied === 1) {
         break;
       }
+      console.log('tl')
       positions.push((--currRow) * 8 + (--currCol));
       if (occupied === -1) {
         break;

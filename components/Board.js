@@ -596,7 +596,6 @@ export function Board() {
     // Prune any moves that do not eliminate checks
     legalMoveBuffer.forEach(pos => {
       const takenPiece = simMove(pieceMap, selectedIdx, pos);
-      console.log(selectedType, selectedColor, selectedIdx, pos, kingInCheck(selectedColor));
       if (kingInCheck(selectedColor) === undefined) {
         legalMoves.push(pos);
       }

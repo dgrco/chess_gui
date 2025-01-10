@@ -1,7 +1,7 @@
 "use client";
 import styles from "./Board.module.css";
 import Image from "next/image";
-import { useState } from "react";
+import { useEffect, useState, useRef } from "react";
 
 import wPawnSvg from "../public/chess_sprites/svg/w_pawn_svg_NoShadow.svg";
 import wBishopSvg from "../public/chess_sprites/svg/w_bishop_svg_NoShadow.svg";
@@ -16,6 +16,7 @@ import bKnightSvg from "../public/chess_sprites/svg/b_knight_svg_NoShadow.svg";
 import bRookSvg from "../public/chess_sprites/svg/b_rook_svg_NoShadow.svg";
 import bQueenSvg from "../public/chess_sprites/svg/b_queen_svg_NoShadow.svg";
 import bKingSvg from "../public/chess_sprites/svg/b_king_svg_NoShadow.svg";
+import next from "next";
 
 const DEFAULT_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
@@ -166,16 +167,57 @@ export function Board() {
       buffer.push({ 'idx': boardIdx, 'piece': pieces.get(boardIdx) });
     }
   }
+
+  /// Initiate a piece map given the current board
+  const initPieceMap = (pieceMap, board, color) => {
+    for (let i = 0; i < board.length; i++) {
+      if (board[i].piece !== undefined && board[i].piece.props.color === color) {
+        pieceMap.current.set(i, board[i]);
+      }
+    }
+  }
+
+  /// Swap piece in piece map
+  const swapInPieceMap = (pieceMap, oldIndex, newIndex) => {
+    const piece = pieceMap.current.get(oldIndex);
+    piece.idx = newIndex;
+    pieceMap.current.set(newIndex, piece);
+    pieceMap.current.delete(oldIndex);
+  }
+
+  //
+  // State
   const [board, setBoard] = useState(buffer);
   const [selected, setSelected] = useState(undefined);
   const [legalMoves, setLegalMoves] = useState([]);
+  const [checkedKing, setCheckedKing] = useState(undefined);
+
+  let whitePieceMap = useRef(new Map());
+  let blackPieceMap = useRef(new Map());
+
+  useEffect(() => {
+    initPieceMap(whitePieceMap, buffer, "White");
+    initPieceMap(blackPieceMap, buffer, "Black");
+  }, [])
 
   /// Check if a piece is at a location, if the piece is the same color as the selected
   /// piece it will return 1, if it is the opposite color it will return -1, otherwise it returns 0.
   /// These arguments are to be passed as board indices, not array indices.
   const isPieceOccupied = (selectedIdx, newIdx) => {
-    const selectedColor = board[selectedIdx].piece !== undefined ? board[selectedIdx].piece.props.color : undefined;
-    const newColor = board[newIdx].piece !== undefined ? board[newIdx].piece.props.color : undefined;
+    let selectedColor = undefined;
+    if (whitePieceMap.current.has(selectedIdx)) {
+      selectedColor = "White";
+    } else if (blackPieceMap.current.has(selectedIdx)) {
+      selectedColor = "Black";
+    }
+
+    let newColor = undefined;
+    if (whitePieceMap.current.has(newIdx)) {
+      newColor = "White";
+    } else if (blackPieceMap.current.has(newIdx)) {
+      newColor = "Black";
+    }
+
     if (selectedColor !== undefined && newColor !== undefined) {
       if (selectedColor === newColor) {
         return 1;
@@ -184,6 +226,53 @@ export function Board() {
       }
     }
     return 0;
+  }
+
+  /// Make a move and redraw the board
+  const makeMove = (oldSelectionIdx, newSelectionIdx) => {
+    const oldSelectionColor = selected !== undefined ? selected.piece.props.color : undefined;
+
+    // Modify piece-maps accordingly
+    if (oldSelectionColor === "White") {
+      swapInPieceMap(whitePieceMap, oldSelectionIdx, newSelectionIdx);
+      if (blackPieceMap.current.has(newSelectionIdx)) {
+        blackPieceMap.current.delete(newSelectionIdx);
+      }
+    } else if (oldSelectionColor === "Black") {
+      swapInPieceMap(blackPieceMap, oldSelectionIdx, newSelectionIdx);
+      if (whitePieceMap.current.has(newSelectionIdx)) {
+        whitePieceMap.current.delete(newSelectionIdx);
+      }
+    }
+
+    let tmp = Array.from(board);
+    tmp[newSelectionIdx].piece = selected.piece;
+    tmp[oldSelectionIdx].piece = undefined;
+
+    setBoard(tmp);
+    setSelected(undefined);
+    setLegalMoves([]);
+  }
+
+  /// Simulate a move and do not redraw the board
+  const simMove = (pieceMap, currPieceIdx, nextSquareIdx) => {
+    const oppositePieceMap = pieceMap === whitePieceMap ? blackPieceMap : whitePieceMap;
+    const wasPieceTaken = oppositePieceMap.current.has(nextSquareIdx);
+    const takenPiece = wasPieceTaken ? oppositePieceMap.current.get(nextSquareIdx) : undefined;
+
+    swapInPieceMap(pieceMap, currPieceIdx, nextSquareIdx);
+    oppositePieceMap.current.delete(nextSquareIdx);
+
+    return takenPiece;
+  }
+
+  /// Reverse a simulated move
+  const unSimMove = (pieceMap, oldPieceIdx, currSquareIdx, takenPiece) => {
+    const oppositePieceMap = pieceMap === whitePieceMap ? blackPieceMap : whitePieceMap;
+    swapInPieceMap(pieceMap, currSquareIdx, oldPieceIdx);
+    if (takenPiece !== undefined) {
+      oppositePieceMap.current.set(currSquareIdx, takenPiece);
+    }
   }
 
   /// Get legal pawn moves
@@ -461,13 +550,14 @@ export function Board() {
   }
 
   /// Generate all pseudo-legal moves of the selected piece
-  const generatePseudoLegalMoves = (sPiece) => {
+  const generateLegalMoves = (sPiece, attackingMoves) => {
     if (sPiece === undefined) {
       return;
     }
     const selectedIdx = sPiece.idx;
     const selectedPiece = sPiece.piece;
     const selectedType = selectedPiece.props.type;
+    const selectedColor = selectedPiece.props.color;
     let legalMoveBuffer = [];
     switch (selectedType) {
       case "Pawn": {
@@ -495,7 +585,84 @@ export function Board() {
         break;
       }
     }
-    setLegalMoves(legalMoveBuffer);
+
+    if (attackingMoves === undefined) {
+      return legalMoveBuffer;
+    }
+
+    let legalMoves = [];
+    const pieceMap = selectedColor === "White" ? whitePieceMap : blackPieceMap;
+
+    // Prune any moves that do not eliminate checks
+    legalMoveBuffer.forEach(pos => {
+      const takenPiece = simMove(pieceMap, selectedIdx, pos);
+      console.log(selectedType, selectedColor, selectedIdx, pos, kingInCheck(selectedColor));
+      if (kingInCheck(selectedColor) === undefined) {
+        legalMoves.push(pos);
+      }
+      unSimMove(pieceMap, selectedIdx, pos, takenPiece);
+    });
+
+    return legalMoves;
+  }
+
+  /// Get all attacking potential moves
+  const getAllAttackingMoves = (attackingColor) => {
+    if (attackingColor !== "White" && attackingColor !== "Black") {
+      return undefined;
+    }
+
+    let attackingMoves = new Map();
+
+    if (attackingColor === "White") {
+      whitePieceMap.current.forEach((pieceTuple) => {
+        const potentialMoves = generateLegalMoves(pieceTuple, undefined); /// TODO: maybe change?
+        attackingMoves.set(pieceTuple.idx, potentialMoves);
+      });
+    } else {
+      blackPieceMap.current.forEach((pieceTuple) => {
+        const potentialMoves = generateLegalMoves(pieceTuple, undefined); /// TODO: maybe change?
+        attackingMoves.set(pieceTuple.idx, potentialMoves);
+      });
+    }
+
+    return attackingMoves;
+  }
+
+  /// Determine if a (victim) color's king is in check
+  /// Returns the victim king's location if it is in check, otherwise it returns undefined
+  const kingInCheck = (victimColor) => {
+    const attackingColor = victimColor === "White" ? "Black" : "White";
+    const attackingMoves = getAllAttackingMoves(attackingColor); // TODO: can we call this only once?
+
+    let victimKingPos = undefined;
+
+    if (victimColor === "White") {
+      whitePieceMap.current.forEach((pieceTuple) => {
+        if (pieceTuple.piece.props.type === "King") {
+          victimKingPos = pieceTuple.idx;
+        }
+      });
+    } else {
+      blackPieceMap.current.forEach((pieceTuple) => {
+        if (pieceTuple.piece.props.type === "King") {
+          victimKingPos = pieceTuple.idx;
+        }
+      });
+    }
+
+    return attackingMoves.values().some(moves => moves.includes(victimKingPos)) ? victimKingPos : undefined;
+  }
+
+
+  /// If color is in check, update the checkedKing state
+  const updateKingInCheck = (color) => {
+    const kingCheck = kingInCheck(color)
+    if (kingCheck !== undefined) {
+      setCheckedKing(kingCheck);
+    } else {
+      setCheckedKing(undefined);
+    }
   }
 
   /// Handle selection and movement logic.
@@ -503,20 +670,18 @@ export function Board() {
     const newSelectionIdx = boardIdx;
     const oldSelectionIdx = selected !== undefined ? selected.idx : undefined;
     const newSelectionColor = board[newSelectionIdx].piece !== undefined ? board[newSelectionIdx].piece.props.color : undefined;
-    const oldSelectedColor = selected !== undefined ? selected.piece.props.color : undefined;
+    const oldSelectionColor = selected !== undefined ? selected.piece.props.color : undefined;
     if (oldSelectionIdx !== undefined && oldSelectionIdx !== newSelectionIdx && legalMoves.includes(boardIdx)) {
-      // Make move
-      let tmp = Array.from(board);
-      tmp[newSelectionIdx].piece = selected.piece;
-      tmp[oldSelectionIdx].piece = undefined;
-      setBoard(tmp);
-      setSelected(undefined);
-      setLegalMoves([]);
+      makeMove(oldSelectionIdx, newSelectionIdx, false);
+      updateKingInCheck(oldSelectionColor === "White" ? "Black" : "White");
     } else if (newSelectionColor !== undefined && newSelectionIdx !== oldSelectionIdx) {
       // Initialize selection
       // TODO: edit the condition to avoid swapping sides
+      const attackingColor = newSelectionColor === "White" ? "Black" : "White";
+      const attackingMoves = getAllAttackingMoves(attackingColor);
+      const legalMoves = generateLegalMoves(board[newSelectionIdx], attackingMoves);
       setSelected(board[newSelectionIdx]);
-      generatePseudoLegalMoves(board[newSelectionIdx]);
+      setLegalMoves(legalMoves);
     } else {
       // Unmake selection
       setSelected(undefined);
@@ -532,12 +697,13 @@ export function Board() {
       tableRows.push(
         <tr key={i}>
           {rowSquares.map(({ idx, piece }, j) => (
-            <td key={i + j} style={{ border: "0px" }}>
+            <td key={idx} style={{ border: "0px" }}>
               <div
                 role="button"
                 onClick={() => handleMove(idx)}
                 className={`${styles.cell} ${isDarkSquare(Math.floor(i / 8), j) ? styles.dark : styles.light} ${selected !== undefined && selected.idx === idx && styles.selected}
-                ${legalMoves.includes(idx) && styles.potentialMove}`}
+                ${legalMoves.includes(idx) && styles.potentialMove}
+                ${idx === checkedKing && styles.checked}`}
               >
                 {piece}
               </div>

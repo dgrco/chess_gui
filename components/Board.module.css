@@ -45,6 +45,10 @@
   background-color: rgba(56, 56, 56, 0.8); 
 }
 
+.potentialMove:hover {
+  cursor: pointer;
+}
+
 .pieceContainer {
   display: flex;
   justify-content: center;
@@ -65,6 +69,10 @@
   -webkit-user-select: none; /* For Safari */
   -moz-user-select: none; /* For Firefox */
   -ms-user-select: none; /* For Internet Explorer/Edge */
+}
+
+.checked {
+  background-color: #eb4034;
 }
 
 .table {

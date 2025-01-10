@@ -1,6 +1,7 @@
 # IronPawn
 
 ## TODO
+* Pawn Promotions
 * Checkmates (Checks are handled)
 * En Passant
 * Castling

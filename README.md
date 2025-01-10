@@ -1,6 +1,7 @@
 # IronPawn
 
 ## TODO
+* Checkmates (Checks are handled)
 * En Passant
 * Castling
 

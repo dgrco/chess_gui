@@ -1,7 +1,7 @@
 "use client";
 import styles from "./Board.module.css";
 import Image from "next/image";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 
 import wPawnSvg from "../public/chess_sprites/svg/w_pawn_svg_NoShadow.svg";
 import wBishopSvg from "../public/chess_sprites/svg/w_bishop_svg_NoShadow.svg";
@@ -16,7 +16,6 @@ import bKnightSvg from "../public/chess_sprites/svg/b_knight_svg_NoShadow.svg";
 import bRookSvg from "../public/chess_sprites/svg/b_rook_svg_NoShadow.svg";
 import bQueenSvg from "../public/chess_sprites/svg/b_queen_svg_NoShadow.svg";
 import bKingSvg from "../public/chess_sprites/svg/b_king_svg_NoShadow.svg";
-import next from "next";
 
 const DEFAULT_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
@@ -159,6 +158,7 @@ export function Board() {
     return pieces;
   };
 
+  // Initialize board buffer
   let pieces = fenToPieces(DEFAULT_FEN);
   let buffer = [];
   for (let row = 0; row < 8; row++) {
@@ -185,6 +185,8 @@ export function Board() {
     pieceMap.current.delete(oldIndex);
   }
 
+
+
   //
   // State
   const [board, setBoard] = useState(buffer);
@@ -195,10 +197,39 @@ export function Board() {
   let whitePieceMap = useRef(new Map());
   let blackPieceMap = useRef(new Map());
 
+  // Engine
+  const [engineOutput, setEngineOutput] = useState('');
+  const [engineWorker, setEngineWorker] = useState(null);
+
+  const sendCommand = (cmd) => {
+    if (engineWorker) {
+      engineWorker.postMessage(cmd);
+    }
+  }
+
   useEffect(() => {
     initPieceMap(whitePieceMap, buffer, "White");
     initPieceMap(blackPieceMap, buffer, "Black");
+
+    // Engine
+    const engineWorker = new Worker(new URL("../public/wasm/engine-worker.js", import.meta.url));
+
+    setEngineWorker(engineWorker);
+
+    engineWorker.onmessage = (e) => {
+      if (e.data.type === "result") {
+        setEngineOutput(e.data.data);
+      }
+    }
+
+    return () => {
+      // cleanup
+      engineWorker.terminate();
+    }
   }, [])
+
+
+
 
   /// Check if a piece is at a location, if the piece is the same color as the selected
   /// piece it will return 1, if it is the opposite color it will return -1, otherwise it returns 0.
@@ -717,12 +748,17 @@ export function Board() {
   };
 
   return (
-    <table
-      className={styles.table}
-      border="1"
-      style={{ borderCollapse: "collapse", textAlign: "center" }}
-    >
-      <tbody>{renderTable()}</tbody>
-    </table>
+    <div>
+      <table
+        className={styles.table}
+        border="1"
+        style={{ borderCollapse: "collapse", textAlign: "center" }}
+      >
+        <tbody>{renderTable()}</tbody>
+      </table>
+
+      <button onClick={() => sendCommand("go depth 6")}>CLICK ME</button>
+      <p style={{ color: 'white' }}>Out: {engineOutput}</p>
+    </div>
   );
 }
